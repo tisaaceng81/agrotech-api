@@ -5,6 +5,8 @@ workflows:
     environment:
       flutter: stable
     scripts:
+      - name: Gerar estrutura nativa do Android
+        script: flutter create . --platforms=android
       - name: Instalar dependências do Flutter
         script: flutter packages get
       - name: Construir APK Release
