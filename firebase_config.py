@@ -1,11 +1,10 @@
 import os
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, db as realtime_db
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Tratamento para ler a chave privada formatada
 private_key = os.getenv("FIREBASE_PRIVATE_KEY", "").replace("\\n", "\n")
 
 cred_dict = {
@@ -18,6 +17,9 @@ cred_dict = {
 
 if not firebase_admin._apps:
     cred = credentials.Certificate(cred_dict)
-    firebase_admin.initialize_app(cred)
+    # Inicializa com a URL do Realtime Database
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': os.getenv("FIREBASE_DATABASE_URL")
+    })
 
-db = firestore.client()
+rtdb = realtime_db
