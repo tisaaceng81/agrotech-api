@@ -22,20 +22,12 @@ app.add_middleware(
 def health_check():
     return {"status": "online", "message": "Servidor rodando perfeitamente"}
 
-# Roteador de Manejo (Original)
 app.include_router(manejo.router)
-# Suporte adicional para chamadas com o prefixo /api (usado pelo Flutter)
 app.include_router(manejo.router, prefix="/api")
-
-
-# --- INTEGRAÇÃO DE PERFIL DE USUÁRIO E PAINEL ADMIN ---
 
 @app.get("/api/user-role/{uid}")
 @app.get("/user-role/{uid}")
 def get_user_role(uid: str):
-    """
-    Retorna o perfil/função do usuário pelo UID do Firebase.
-    """
     try:
         user_ref = rtdb.reference(f"users/{uid}")
         user_data = user_ref.get()
@@ -66,9 +58,6 @@ def get_user_role(uid: str):
 @app.get("/api/admin/dashboard/{uid}")
 @app.get("/admin/dashboard/{uid}")
 def get_admin_dashboard(uid: str):
-    """
-    Verifica se o usuário é administrador e retorna dados do painel admin.
-    """
     try:
         user_ref = rtdb.reference(f"users/{uid}")
         user_data = user_ref.get()
@@ -93,8 +82,8 @@ def get_admin_dashboard(uid: str):
                 detail="Acesso negado: Perfil sem privilégios de Administrador."
             )
 
-        # Consulta dados para exibição no Dashboard Admin
-        manejo_ref = rtdb.reference("manejo")
+        # Corrigido para "registros_manejo" para bater com o router de manejo
+        manejo_ref = rtdb.reference("registros_manejo")
         manejo_data = manejo_ref.get() or {}
 
         users_ref = rtdb.reference("users")
@@ -106,6 +95,10 @@ def get_admin_dashboard(uid: str):
         return {
             "status": "success",
             "role": "admin",
+            "metricas": {
+                "total_registros": total_manejo,
+                "total_usuarios": total_users
+            },
             "total_registros_manejo": total_manejo,
             "total_usuarios": total_users,
             "message": "Acesso concedido ao painel do administrador."
