@@ -6,34 +6,46 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Tenta carregar via JSON completo (se configurado)
+cred_dict = None
 firebase_credentials_raw = os.getenv("FIREBASE_CREDENTIALS")
 
+# 1. Tenta carregar o JSON completo se a variável existir
 if firebase_credentials_raw:
     try:
-        cred_dict = json.loads(firebase_credentials_raw)
-    except json.JSONDecodeError:
+        raw_str = firebase_credentials_raw.strip().strip('"').strip("'")
+        cred_dict = json.loads(raw_str)
+    except Exception as e:
+        print(f"Erro ao ler FIREBASE_CREDENTIALS: {e}")
         cred_dict = None
-else:
-    cred_dict = None
 
-# Se não houver a variável de JSON único, utiliza a montagem com as variáveis separadas
+# 2. Se não encontrou o JSON completo, tenta montar pelas variáveis avulsas
 if not cred_dict:
-    private_key = os.getenv("FIREBASE_PRIVATE_KEY", "").replace("\\n", "\n")
-
     cred_dict = {
         "type": "service_account",
         "project_id": os.getenv("FIREBASE_PROJECT_ID"),
-        "private_key": private_key,
+        "private_key": os.getenv("FIREBASE_PRIVATE_KEY", ""),
         "client_email": os.getenv("FIREBASE_CLIENT_EMAIL"),
         "token_uri": "https://oauth2.googleapis.com/token",
     }
 
+# 3. TRATAMENTO CRÍTICO DA CHAVE PRIVADA (Corrige MalformedFraming do telemóvel)
+if cred_dict and "private_key" in cred_dict and cred_dict["private_key"]:
+    pk = str(cred_dict["private_key"])
+    
+    # Remove aspas externas indesejadas
+    pk = pk.strip().strip('"').strip("'")
+    
+    # Converte '\\n' literal em quebra de linha real '\n'
+    pk = pk.replace("\\n", "\n")
+    
+    # Garante cabeçalho e rodapé limpos
+    cred_dict["private_key"] = pk
+
 if not firebase_admin._apps:
+    database_url = os.getenv("FIREBASE_DATABASE_URL")
     cred = credentials.Certificate(cred_dict)
-    # Inicializa com a URL do Realtime Database
     firebase_admin.initialize_app(cred, {
-        'databaseURL': os.getenv("FIREBASE_DATABASE_URL")
+        'databaseURL': database_url
     })
 
 rtdb = realtime_db
