@@ -13,7 +13,7 @@
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboardSize|screenSize|locale|layoutDirection|fontScale|uiMode"
+            android:configChanges="orientation|keyboardHidden|screenSize|locale|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
             <meta-data
