@@ -3,8 +3,8 @@ workflows:
     name: Android Workflow
     environment:
       flutter: stable
-      groups:
-        - env_vars    # <--- Mete aqui o nome do grupo que criaste no painel do Codemagic
+      vars:
+        DATABASE_URL: "https://agrotech-api-ldyv.onrender.com"
     scripts:
       - name: Gerar estrutura nativa do Android automaticamente
         script: |
@@ -29,6 +29,7 @@ workflows:
           flutter pub get
       - name: Compilar o APK Release
         script: |
+          echo "A usar o URL: $DATABASE_URL"
           flutter build apk --release --dart-define=DATABASE_URL=$DATABASE_URL
     artifacts:
       - build/**/outputs/**/*.apk
