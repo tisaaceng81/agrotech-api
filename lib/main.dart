@@ -31,6 +31,7 @@ class AgroTechApp extends StatelessWidget {
   }
 }
 
+// ----------------- LOGIN -----------------
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -39,24 +40,34 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _uidController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _senhaController = TextEditingController();
   bool _isLoading = false;
 
   Future<void> _entrar() async {
-    final uid = _uidController.text.trim();
-    if (uid.isEmpty) {
+    final email = _emailController.text.trim();
+    final senha = _senhaController.text.trim();
+
+    if (email.isEmpty || senha.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, insira o UID.')),
+        const SnackBar(content: Text('Preencha o e-mail e a palavra-passe.')),
       );
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      final response = await http.get(Uri.parse('$apiUrl/user-role/$uid'));
+      final response = await http.post(
+        Uri.parse('$apiUrl/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"email": email, "senha": senha}),
+      );
+
+      final data = jsonDecode(response.body);
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
         final role = data['role'] ?? 'user';
+        final uid = data['uid'];
         final nome = data['nome'] ?? 'Produtor';
 
         if (!mounted) return;
@@ -72,12 +83,12 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
-        throw Exception('Erro ao autenticar');
+        throw Exception(data['detail'] ?? 'Erro ao entrar');
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro de ligação: $e')),
+        SnackBar(content: Text('Erro: $e')),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -93,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('🌱', style: TextStyle(fontSize: 48)),
+              Image.asset('assets/logo.png', height: 80, width: 80, fit: BoxFit.contain),
               const SizedBox(height: 10),
               const Text(
                 'AgroTech Intelligence',
@@ -110,12 +121,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Identificação do Utilizador', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text('Iniciar Sessão', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 14),
                     TextField(
-                      controller: _uidController,
+                      controller: _emailController,
                       decoration: InputDecoration(
-                        labelText: 'UID do Firebase (ex: admin_master)',
+                        labelText: 'E-mail',
+                        filled: true,
+                        fillColor: const Color(0xFF1F2937),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _senhaController,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'Palavra-passe',
                         filled: true,
                         fillColor: const Color(0xFF1F2937),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -134,7 +156,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: _isLoading ? null : _entrar,
                         child: _isLoading 
                           ? const CircularProgressIndicator(color: Colors.black)
-                          : const Text('Aceder ao Sistema', style: TextStyle(fontWeight: FontWeight.bold)),
+                          : const Text('Entrar', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                        child: const Text('Não tem conta? Criar Registo', style: TextStyle(color: Color(0xFF38BDF8))),
                       ),
                     ),
                   ],
@@ -148,6 +177,86 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
+// ----------------- REGISTO -----------------
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _nomeController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _senhaController = TextEditingController();
+  bool _isLoading = false;
+
+  Future<void> _registar() async {
+    final nome = _nomeController.text.trim();
+    final email = _emailController.text.trim();
+    final senha = _senhaController.text.trim();
+
+    if (nome.isEmpty || email.isEmpty || senha.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preencha todos os campos.')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse('$apiUrl/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"nome": nome, "email": email, "senha": senha}),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data['message'] ?? 'Conta criada com sucesso!')),
+        );
+        Navigator.pop(context);
+      } else {
+        throw Exception(data['detail'] ?? 'Erro ao registar');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Criar Nova Conta')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            TextField(controller: _nomeController, decoration: const InputDecoration(labelText: 'Nome Completo')),
+            const SizedBox(height: 12),
+            TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'E-mail')),
+            const SizedBox(height: 12),
+            TextField(controller: _senhaController, obscureText: true, decoration: const InputDecoration(labelText: 'Palavra-passe')),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.black),
+                onPressed: _isLoading ? null : _registar,
+                child: const Text('Submeter Registo'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------- PAINEL DO PRODUTOR -----------------
 class ProducerScreen extends StatefulWidget {
   final String uid;
   final String nome;
@@ -164,7 +273,7 @@ class _ProducerScreenState extends State<ProducerScreen> {
   final _obsController = TextEditingController();
   String _tipo = 'Plantio';
 
-  Future<void> _registar() async {
+  Future<void> _registarManejo() async {
     if (_culturaController.text.isEmpty || _areaController.text.isEmpty || _qtdController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preencha os campos obrigatórios.')));
       return;
@@ -186,7 +295,7 @@ class _ProducerScreenState extends State<ProducerScreen> {
 
       if (response.statusCode == 201) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Atividade registada com sucesso!')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Atividade de manejo gravada!')));
         _culturaController.clear();
         _areaController.clear();
         _qtdController.clear();
@@ -232,8 +341,8 @@ class _ProducerScreenState extends State<ProducerScreen> {
             const SizedBox(height: 20),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.black),
-              onPressed: _registar,
-              child: const Text('Gravar Registo'),
+              onPressed: _registarManejo,
+              child: const Text('Gravar Registo de Manejo'),
             ),
           ],
         ),
@@ -242,6 +351,7 @@ class _ProducerScreenState extends State<ProducerScreen> {
   }
 }
 
+// ----------------- PAINEL DO ADMINISTRADOR -----------------
 class AdminScreen extends StatefulWidget {
   final String uid;
   const AdminScreen({super.key, required this.uid});
@@ -253,11 +363,6 @@ class AdminScreen extends StatefulWidget {
 class _AdminScreenState extends State<AdminScreen> {
   Map<String, dynamic> dadosAdmin = {};
   bool isLoading = true;
-
-  final _novoUid = TextEditingController();
-  final _novoNome = TextEditingController();
-  final _novoEmail = TextEditingController();
-  String _novoRole = 'user';
 
   @override
   void initState() {
@@ -279,27 +384,14 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  Future<void> _criarUtilizador() async {
-    if (_novoUid.text.isEmpty || _novoNome.text.isEmpty) return;
+  Future<void> _alterarStatus(String uidAlvo, String novoStatus) async {
     try {
-      final response = await http.post(
-        Uri.parse('$apiUrl/usuarios'),
+      await http.patch(
+        Uri.parse('$apiUrl/admin/users/$uidAlvo/status'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "uid": _novoUid.text.trim(),
-          "nome": _novoNome.text.trim(),
-          "email": _novoEmail.text.trim(),
-          "role": _novoRole
-        }),
+        body: jsonEncode({"status": novoStatus}),
       );
-      if (response.statusCode == 200) {
-        _novoUid.clear();
-        _novoNome.clear();
-        _novoEmail.clear();
-        _carregarDashboard();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Utilizador criado com sucesso!')));
-      }
+      _carregarDashboard();
     } catch (e) {
       print(e);
     }
@@ -337,32 +429,38 @@ class _AdminScreenState extends State<AdminScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Total de Utilizadores: ${metricas['total_usuarios'] ?? 0}'),
-                  Text('Total de Registos: ${metricas['total_registros'] ?? 0}'),
+                  Text('Total de Registos de Manejo: ${metricas['total_registros'] ?? 0}'),
                   const Divider(height: 30),
-                  const Text('Criar Novo Utilizador', style: TextStyle(fontWeight: FontWeight.bold)),
-                  TextField(controller: _novoUid, decoration: const InputDecoration(labelText: 'UID')),
-                  TextField(controller: _novoNome, decoration: const InputDecoration(labelText: 'Nome')),
-                  TextField(controller: _novoEmail, decoration: const InputDecoration(labelText: 'E-mail')),
-                  DropdownButtonFormField<String>(
-                    value: _novoRole,
-                    items: const [
-                      DropdownMenuItem(value: 'user', child: Text('Produtor')),
-                      DropdownMenuItem(value: 'admin', child: Text('Administrador')),
-                    ],
-                    onChanged: (val) => setState(() => _novoRole = val!),
-                  ),
+                  const Text('Gestão de Utilizadores e Aprovações', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 10),
-                  ElevatedButton(onPressed: _criarUtilizador, child: const Text('Salvar Utilizador')),
-                  const Divider(height: 30),
-                  const Text('Utilizadores no Sistema', style: TextStyle(fontWeight: FontWeight.bold)),
                   ...usuarios.entries.map<Widget>((entry) {
                     final u = entry.value;
-                    return ListTile(
-                      title: Text(u['nome'] ?? 'Sem nome'),
-                      subtitle: Text('${u['email']} (${u['role']})'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _apagarUtilizador(entry.key),
+                    final status = u['status'] ?? 'pending';
+                    final role = u['role'] ?? 'user';
+
+                    return Card(
+                      color: const Color(0xFF1F2937),
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: ListTile(
+                        title: Text(u['nome'] ?? 'Sem nome', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('${u['email']}\nFunção: $role | Estado: $status'),
+                        isThreeLine: true,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (status == 'pending')
+                              IconButton(
+                                icon: const Icon(Icons.check_circle, color: Colors.green),
+                                onPressed: () => _alterarStatus(entry.key, 'approved'),
+                                tooltip: 'Aprovar Utilizador',
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _apagarUtilizador(entry.key),
+                              tooltip: 'Eliminar Utilizador',
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }).toList(),
