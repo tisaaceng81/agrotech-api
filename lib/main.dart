@@ -209,15 +209,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
         body: jsonEncode({"nome": nome, "email": email, "senha": senha}),
       );
 
-      final data = jsonDecode(response.body);
-      if (response.statusCode == 200) {
+      Map<String, dynamic> data = {};
+      try {
+        data = jsonDecode(response.body);
+      } catch (_) {
+        data = {"detail": response.body};
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(data['message'] ?? 'Conta criada com sucesso!')),
         );
         Navigator.pop(context);
       } else {
-        throw Exception(data['detail'] ?? 'Erro ao registar');
+        throw Exception(data['detail'] ?? 'Erro ao registar (Código: ${response.statusCode})');
       }
     } catch (e) {
       if (!mounted) return;
