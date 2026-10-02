@@ -7,6 +7,12 @@ workflows:
       - name: Gerar estrutura nativa do Android automaticamente
         script: |
           flutter create . --platforms=android
+      - name: Injetar permissão de Internet automaticamente
+        script: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST" ]; then
+            sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>' "$MANIFEST"
+          fi
       - name: Obter pacotes do pubspec
         script: |
           flutter pub get
