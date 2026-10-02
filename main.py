@@ -14,7 +14,6 @@ load_dotenv()
 cred_dict = None
 firebase_credentials_raw = os.getenv("FIREBASE_CREDENTIALS")
 
-# 1. Tenta carregar o JSON completo se a variável existir
 if firebase_credentials_raw:
     try:
         raw_str = firebase_credentials_raw.strip().strip('"').strip("'")
@@ -23,7 +22,6 @@ if firebase_credentials_raw:
         print(f"Erro ao ler FIREBASE_CREDENTIALS: {e}")
         cred_dict = None
 
-# 2. Se não encontrou o JSON completo, tenta montar pelas variáveis avulsas
 if not cred_dict:
     cred_dict = {
         "type": "service_account",
@@ -33,7 +31,6 @@ if not cred_dict:
         "token_uri": "https://oauth2.googleapis.com/token",
     }
 
-# 3. TRATAMENTO CRÍTICO DA CHAVE PRIVADA
 if cred_dict and "private_key" in cred_dict and cred_dict["private_key"]:
     pk = str(cred_dict["private_key"])
     pk = pk.strip().strip('"').strip("'")
@@ -97,6 +94,19 @@ def salvar_usuario(usuario: UsuarioSchema):
 @app.get("/api/user-role/{uid}")
 def obter_perfil(uid: str):
     try:
+        users_ref = rtdb.reference("users")
+        all_users = users_ref.get()
+        
+        # Se o Firebase estiver vazio, o primeiro a entrar vira ADMIN automaticamente!
+        if not all_users:
+            admin_data = {
+                "nome": "Administrador Master",
+                "email": "admin@agrotech.com",
+                "role": "admin"
+            }
+            users_ref.child(uid).set(admin_data)
+            return {"uid": uid, "role": "admin", "nome": "Administrador Master"}
+
         ref = rtdb.reference(f"users/{uid}")
         dados = ref.get()
         if not dados:
