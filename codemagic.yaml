@@ -27,6 +27,6 @@ workflows:
           flutter pub get
       - name: Compilar o APK Release
         script: |
-          flutter build apk --release
+          flutter build apk --release --dart-define=DATABASE_URL=$DATABASE_URL
     artifacts:
       - build/**/outputs/**/*.apk
