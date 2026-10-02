@@ -3,6 +3,8 @@ workflows:
     name: Android Workflow
     environment:
       flutter: stable
+      groups:
+        - env_vars    # <--- Mete aqui o nome do grupo que criaste no painel do Codemagic
     scripts:
       - name: Gerar estrutura nativa do Android automaticamente
         script: |
