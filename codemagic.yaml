@@ -1,6 +1,6 @@
 workflows:
-  agrotech-workflow:
-    name: AgroTech Workflow
+  android-workflow:
+    name: Android Workflow
     instance_type: mac_mini
     environment:
       flutter: stable
