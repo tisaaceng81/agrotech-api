@@ -1,15 +1,18 @@
 workflows:
-  android-workflow:
-    name: Compilar APK AgroTech
-    max_build_duration: 60
+  agrotech-workflow:
+    name: AgroTech Workflow
+    instance_type: mac_mini
     environment:
       flutter: stable
     scripts:
-      - name: Gerar estrutura nativa do Android
-        script: flutter create . --platforms=android
-      - name: Instalar dependências do Flutter
-        script: flutter packages get
-      - name: Construir APK Release
-        script: flutter build apk --release
+      - name: Gerar estrutura nativa do Android automaticamente
+        script: |
+          flutter create . --platforms=android
+      - name: Obter pacotes do pubspec
+        script: |
+          flutter pub get
+      - name: Compilar o APK Release
+        script: |
+          flutter build apk --release
     artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
+      - build/**/outputs/**/*.apk
