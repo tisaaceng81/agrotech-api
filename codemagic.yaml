@@ -9,15 +9,19 @@ workflows:
           flutter create . --platforms=android
       - name: Injetar permissão de Internet automaticamente
         script: |
-          python3 -c '
+          python3 - << 'EOF'
           path = "android/app/src/main/AndroidManifest.xml"
-          with open(path, "r") as f:
-              content = f.read()
-          if "android.permission.INTERNET" not in content:
-              content = content.replace("<application", "<uses-permission android:name=\"android.permission.INTERNET\"/>\n    <application")
-              with open(path, "w") as f:
-                  f.write(content)
-          '
+          try:
+              with open(path, "r") as f:
+                  content = f.read()
+              if "android.permission.INTERNET" not in content:
+                  content = content.replace("<application", "<uses-permission android:name=\"android.permission.INTERNET\"/>\n    <application")
+                  with open(path, "w") as f:
+                      f.write(content)
+              print("Permissão injetada com sucesso!")
+          except Exception as e:
+              print(f"Erro ao injetar permissão: {e}")
+          EOF
       - name: Obter pacotes do pubspec
         script: |
           flutter pub get
