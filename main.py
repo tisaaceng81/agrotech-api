@@ -48,8 +48,8 @@ rtdb = realtime_db
 
 app = FastAPI(
     title="API AgroTech Completa",
-    description="Backend FastAPI com Gestão Completa via App",
-    version="2.0.0"
+    description="Backend FastAPI com Autenticação e Aprovação",
+    version="3.0.0"
 )
 
 app.add_middleware(
@@ -60,6 +60,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class RegisterSchema(BaseModel):
+    nome: str
+    email: str
+    senha: str
+
+class LoginSchema(BaseModel):
+    email: str
+    senha: str
+
 class ManejoSchema(BaseModel):
     cultura: str
     area: str
@@ -68,50 +77,77 @@ class ManejoSchema(BaseModel):
     observacao: Optional[str] = ""
     uid_usuario: str
 
-class UsuarioSchema(BaseModel):
-    uid: str
-    nome: str
-    email: str
-    role: Optional[str] = "user"
-
 @app.get("/health")
 def health_check():
     return {"status": "online", "message": "Servidor AgroTech operacional"}
 
-@app.post("/api/usuarios")
-def salvar_usuario(usuario: UsuarioSchema):
+@app.post("/api/register")
+def registar_utilizador(dados: RegisterSchema):
     try:
-        ref = rtdb.reference(f"users/{usuario.uid}")
-        ref.set({
-            "nome": usuario.nome,
-            "email": usuario.email,
-            "role": usuario.role
+        users_ref = rtdb.reference("users")
+        all_users = users_ref.get() or {}
+        
+        # Verificar se o e-mail já existe
+        for uid_key, u_data in all_users.items():
+            if isinstance(u_data, dict) and u_data.get("email") == dados.email:
+                raise HTTPException(status_code=400, detail="Este e-mail já está registado.")
+
+        # Se não houver nenhum utilizador, o primeiro é ADMIN aprovado automaticamente
+        is_first = len(all_users) == 0
+        role = "admin" if is_first else "user"
+        status_conta = "approved" if is_first else "pending"
+
+        novo_ref = users_ref.push()
+        uid = novo_ref.key
+
+        novo_ref.set({
+            "uid": uid,
+            "nome": dados.nome,
+            "email": dados.email,
+            "senha": dados.senha,
+            "role": role,
+            "status": status_conta,
+            "criadoEm": datetime.utcnow().isoformat()
         })
-        return {"success": True, "message": "Utilizador guardado com sucesso."}
+
+        return {
+            "success": True, 
+            "message": "Conta criada com sucesso!" if not is_first else "Admin Master criado com sucesso!",
+            "status": status_conta
+        }
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/user-role/{uid}")
-def obter_perfil(uid: str):
+@app.post("/api/login")
+def fazer_login(dados: LoginSchema):
     try:
         users_ref = rtdb.reference("users")
-        all_users = users_ref.get()
-        
-        # Se o Firebase estiver vazio, o primeiro a entrar vira ADMIN automaticamente!
-        if not all_users:
-            admin_data = {
-                "nome": "Administrador Master",
-                "email": "admin@agrotech.com",
-                "role": "admin"
-            }
-            users_ref.child(uid).set(admin_data)
-            return {"uid": uid, "role": "admin", "nome": "Administrador Master"}
+        all_users = users_ref.get() or {}
 
-        ref = rtdb.reference(f"users/{uid}")
-        dados = ref.get()
-        if not dados:
-            return {"uid": uid, "role": "user", "nome": "Produtor"}
-        return dados
+        user_encontrado = None
+        for uid_key, u_data in all_users.items():
+            if isinstance(u_data, dict) and u_data.get("email") == dados.email:
+                if u_data.get("senha") == dados.senha:
+                    user_encontrado = u_data
+                    break
+
+        if not user_encontrado:
+            raise HTTPException(status_code=401, detail="E-mail ou palavra-passe incorretos.")
+
+        if user_encontrado.get("status") == "pending":
+            raise HTTPException(status_code=403, detail="A sua conta está pendente de aprovação pelo Administrador.")
+
+        return {
+            "success": True,
+            "uid": user_encontrado.get("uid"),
+            "nome": user_encontrado.get("nome"),
+            "role": user_encontrado.get("role"),
+            "status": user_encontrado.get("status")
+        }
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -127,6 +163,18 @@ def criar_registro(registro: ManejoSchema):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.patch("/api/admin/users/{uid_alvo}/status")
+def alterar_status_utilizador(uid_alvo: str, status_payload: dict):
+    try:
+        novo_status = status_payload.get("status") # 'approved' ou 'rejected'
+        ref = rtdb.reference(f"users/{uid_alvo}")
+        if not ref.get():
+            raise HTTPException(status_code=404, detail="Utilizador não encontrado.")
+        ref.update({"status": novo_status})
+        return {"success": True, "message": f"Estado alterado para {novo_status}."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.delete("/api/admin/users/{uid_alvo}")
 def eliminar_utilizador(uid_alvo: str):
     try:
@@ -137,8 +185,8 @@ def eliminar_utilizador(uid_alvo: str):
 
 @app.get("/api/admin/dashboard/{uid}")
 def painel_admin(uid: str):
-    user_ref = rtdb.reference(f"users/{uid}").get()
-    role = user_ref.get("role") if isinstance(user_ref, dict) else "user"
+    user_ref = rtdb.reference(f"users/{uid}").get() or {}
+    role = user_ref.get("role", "user")
     
     if role != "admin":
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
